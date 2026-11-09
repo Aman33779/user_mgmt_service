@@ -1,4 +1,21 @@
 services:
+  traefik:
+    image: traefik:v3.7
+    command:
+      - --api.dashboard=true
+      - --api.insecure=true
+      - --providers.docker=true
+      - --providers.docker.exposedbydefault=false
+      - --entrypoints.web.address=:80
+    ports:
+      - "80:80"
+      - "8081:8080"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    networks:
+      - proxy
+    restart: unless-stopped
+
   postgres:
     image: postgres:16-alpine
     environment:
@@ -27,16 +44,26 @@ services:
       JWT_ISSUER: ${JWT_ISSUER}
       JWT_SECRET: ${JWT_SECRET}
       JWT_EXPIRATION_MILLIS: ${JWT_EXPIRATION_MILLIS}
-    ports:
-      - "8080:8080"
+    labels:
+      - traefik.enable=true
+      - traefik.docker.network=proxy
+      - traefik.http.routers.backend.rule=PathPrefix(`/api`)
+      - traefik.http.routers.backend.entrypoints=web
+      - traefik.http.services.backend.loadbalancer.server.port=8080
+      - traefik.http.middlewares.strip-api.stripprefix.prefixes=/api
+      - traefik.http.routers.backend.middlewares=strip-api
     depends_on:
       postgres:
         condition: service_healthy
     networks:
+      - proxy
       - backend
     restart: unless-stopped
 
 networks:
+  proxy:
+    name: proxy
+    driver: bridge
   backend:
     driver: bridge
 
