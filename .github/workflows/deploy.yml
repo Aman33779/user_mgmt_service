@@ -10,7 +10,7 @@ permissions:
   packages: write
 
 env:
-  IMAGE: ghcr.io/${{ github.repository }}
+  IMAGE: ghcr.io/aman33779/user_mgmt_service
   APP_DIR: /opt/user_mgmt_service
 
 jobs:
