@@ -3,7 +3,6 @@ services:
     image: traefik:v3.7
     command:
       - --api.dashboard=true
-      - --api.insecure=true
       - --providers.docker=true
       - --providers.docker.exposedbydefault=false
       - --entrypoints.web.address=:80
@@ -17,7 +16,16 @@ services:
     ports:
       - "80:80"
       - "443:443"
-      - "8081:8080"
+    labels:
+      # Dashboard nur ueber HTTPS auf traefik.<DOMAIN> und nur mit Login (BasicAuth)
+      - traefik.enable=true
+      - traefik.http.routers.dashboard.rule=Host(`traefik.${DOMAIN}`)
+      - traefik.http.routers.dashboard.entrypoints=websecure
+      - traefik.http.routers.dashboard.tls=true
+      - traefik.http.routers.dashboard.tls.certresolver=letsencrypt
+      - traefik.http.routers.dashboard.service=api@internal
+      - traefik.http.routers.dashboard.middlewares=dashboard-auth
+      - traefik.http.middlewares.dashboard-auth.basicauth.users=${TRAEFIK_DASHBOARD_AUTH}
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock:ro
       - letsencrypt:/letsencrypt
@@ -44,7 +52,7 @@ services:
 
   backend:
     build: .
-    image: user-mgmt-service
+    image: ${BACKEND_IMAGE:-user-mgmt-service}
     environment:
       SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/${POSTGRES_DB}
       SPRING_DATASOURCE_USERNAME: ${POSTGRES_USER}
